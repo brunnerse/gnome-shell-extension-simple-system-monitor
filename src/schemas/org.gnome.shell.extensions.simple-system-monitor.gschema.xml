@@ -36,6 +36,21 @@
       <summary>CPU Usage Text</summary>
       <description>CPU Usage Text</description>
     </key>
+    <key type="b" name="is-temperature-fahrenheit">
+      <default>false</default>
+      <summary>Temperature Unit</summary>
+      <description>Temperature Unit</description>
+    </key>
+    <key type="b" name="is-temperature-enable">
+      <default>true</default>
+      <summary>Show Temperature</summary>
+      <description>Show Temperature </description>
+    </key>
+    <key type="s" name="temperature-text">
+      <default>'°C'</default>
+      <summary>Temperature Text</summary>
+      <description>Temperature Text</description>
+    </key>
     <key type="b" name="is-memory-usage-enable">
       <default>true</default>
       <summary>Show Memory Usage</summary>

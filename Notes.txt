@@ -1,0 +1,3 @@
+Add Temperature; TODO still need more sophisticated way as there are multiple temperature sto select (see https://askubuntu.com/questions/15832/how-do-i-get-the-cpu-temperature)
+
+TODO Update Prefs interface

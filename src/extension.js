@@ -110,6 +110,24 @@ const getCurrentNetSpeed = (refreshInterval) => {
     return netSpeed;
 };
 
+// See https://askubuntu.com/a/854029
+const getCurrentTemperature = () => {
+    let currentTemperature = 0;
+
+    try {
+	// TODO  which thermal zone?
+        const inputFile = Gio.File.new_for_path('/sys/class/thermal/thermal_zone0/temp');
+        const [, content] = inputFile.load_contents(null);
+        const contentStr = ByteArray.toString(content);
+        const contentLines = contentStr.split('\n');
+
+        currentTemperature = parseInt(contentLines[0]);
+    } catch (e) {
+        logError(e);
+    }
+    return currentTemperature;
+};
+
 // See <https://stackoverflow.com/a/9229580>.
 const getCurrentCPUUsage = () => {
     let currentCPUUsage = 0;
@@ -279,13 +297,22 @@ const formatUsageVal = (usage, showExtraSpaces, showPercentSign) => {
     );
 };
 
+// Format temperature value in temp_Celsius * 1e3 as an float value xx.x °C or °F.
+const formatTemperature = (temperature, showExtraSpaces, useFahrenheit) => {
+    var temp = parseFloat(temperature) / 1e3;
+    if (useFahrenheit) temp = (temp * 9) / 5 + 32;
+    return temp.toFixed(1).padStart(showExtraSpaces ? 3 : 2) + (useFahrenheit ? '°F' : '°C');
+};
+
 const toDisplayString = (
     showFullNetSpeedUnit,
     showExtraSpaces,
     showPercentSign,
+    useFahrenheit,
     texts,
     enable,
     cpuUsage,
+    cpuTemperature,
     memoryUsage,
     netSpeed,
     swapUsage,
@@ -294,6 +321,15 @@ const toDisplayString = (
     if (enable.isCpuUsageEnable && cpuUsage !== null) {
         displayItems.push(
             `${texts.cpuUsageText} ${formatUsageVal(cpuUsage, showExtraSpaces, showPercentSign)}`,
+        );
+    }
+    if (enable.isTemperatureEnable && cpuTemperature !== null) {
+        displayItems.push(
+            `${texts.temperatureText} ${formatTemperature(
+                cpuTemperature,
+                showExtraSpaces,
+                useFahrenheit,
+            )}`,
         );
     }
     if (enable.isMemoryUsageEnable && memoryUsage !== null) {
@@ -391,6 +427,7 @@ export default class SSMExtension extends Extension {
         this._texts = {
             cpuUsageText: this._prefs.CPU_USAGE_TEXT.get(),
             memoryUsageText: this._prefs.MEMORY_USAGE_TEXT.get(),
+            temperatureText: this._prefs.TEMPERATURE_TEXT.get(),
             downloadSpeedText: this._prefs.DOWNLOAD_SPEED_TEXT.get(),
             uploadSpeedText: this._prefs.UPLOAD_SPEED_TEXT.get(),
             swapUsageText: this._prefs.SWAP_USAGE_TEXT.get(),
@@ -400,10 +437,13 @@ export default class SSMExtension extends Extension {
         this._enable = {
             isCpuUsageEnable: this._prefs.IS_CPU_USAGE_ENABLE.get(),
             isMemoryUsageEnable: this._prefs.IS_MEMORY_USAGE_ENABLE.get(),
+            isTemperatureEnable: this._prefs.IS_TEMPERATURE_ENABLE.get(),
             isDownloadSpeedEnable: this._prefs.IS_DOWNLOAD_SPEED_ENABLE.get(),
             isUploadSpeedEnable: this._prefs.IS_UPLOAD_SPEED_ENABLE.get(),
             isSwapUsageEnable: this._prefs.IS_SWAP_USAGE_ENABLE.get(),
         };
+
+        this._isTemperatureFahrenheit = this._prefs.IS_TEMPERATURE_FAHRENHEIT.get();
 
         this._showExtraSpaces = this._prefs.SHOW_EXTRA_SPACES.get();
 
@@ -432,7 +472,7 @@ export default class SSMExtension extends Extension {
     }
 
     disable() {
-        this._destory_setting_change_listener();
+        this._destroy_setting_change_listener();
         if (this._indicator != null) {
             this._indicator.destroy();
             this._indicator = null;
@@ -455,6 +495,7 @@ export default class SSMExtension extends Extension {
     _refresh_monitor() {
         let currentCPUUsage = null;
         let currentMemoryUsage = null;
+        let currentTemperature = null;
         let currentNetSpeed = null;
         let currentSwapUsage = null;
         if (this._enable.isCpuUsageEnable) {
@@ -462,6 +503,9 @@ export default class SSMExtension extends Extension {
         }
         if (this._enable.isMemoryUsageEnable) {
             currentMemoryUsage = getCurrentMemoryUsage();
+        }
+        if (this._enable.isTemperatureEnable) {
+            currentTemperature = getCurrentTemperature();
         }
         if (this._enable.isDownloadSpeedEnable || this._enable.isUploadSpeedEnable) {
             currentNetSpeed = getCurrentNetSpeed(this._refresh_interval);
@@ -474,10 +518,13 @@ export default class SSMExtension extends Extension {
             this._showFullNetSpeedUnit,
             this._showExtraSpaces,
             this._showPercentSign,
+            this._isTemperatureFahrenheit,
             this._texts,
             this._enable,
             currentCPUUsage,
+            currentTemperature,
             currentMemoryUsage,
+            currentTemperature,
             currentNetSpeed,
             currentSwapUsage,
         );
@@ -486,6 +533,7 @@ export default class SSMExtension extends Extension {
     }
 
     _listen_setting_change() {
+        // TODO use value from callback instead of calling prefs.get()
         this._prefs.SHOW_EXTRA_SPACES.changed(() => {
             this._showExtraSpaces = this._prefs.SHOW_EXTRA_SPACES.get();
         });
@@ -500,6 +548,10 @@ export default class SSMExtension extends Extension {
 
         this._prefs.IS_MEMORY_USAGE_ENABLE.changed(() => {
             this._enable.isMemoryUsageEnable = this._prefs.IS_MEMORY_USAGE_ENABLE.get();
+        });
+
+        this._prefs.IS_TEMPERATURE_ENABLE.changed(() => {
+            this._enable.isTemperatureEnable = this._prefs.IS_TEMPERATURE_ENABLE.get();
         });
 
         this._prefs.IS_DOWNLOAD_SPEED_ENABLE.changed(() => {
@@ -522,6 +574,10 @@ export default class SSMExtension extends Extension {
             this._texts.memoryUsageText = this._prefs.MEMORY_USAGE_TEXT.get();
         });
 
+        this._prefs.TEMPERATURE_TEXT.changed(() => {
+            this._texts.temperatureText = this._prefs.TEMPERATURE_TEXT.get();
+        });
+
         this._prefs.DOWNLOAD_SPEED_TEXT.changed(() => {
             this._texts.downloadSpeedText = this._prefs.DOWNLOAD_SPEED_TEXT.get();
         });
@@ -536,6 +592,10 @@ export default class SSMExtension extends Extension {
 
         this._prefs.ITEM_SEPARATOR.changed(() => {
             this._texts.itemSeparator = this._prefs.ITEM_SEPARATOR.get();
+        });
+
+        this._prefs.IS_TEMPERATURE_FAHRENHEIT.changed(() => {
+            this._isTemperatureFahrenheit = this._prefs.IS_TEMPERATURE_FAHRENHEIT.get();
         });
 
         this._prefs.SHOW_FULL_NET_SPEED_UNIT.changed(() => {
@@ -560,15 +620,17 @@ export default class SSMExtension extends Extension {
         });
     }
 
-    _destory_setting_change_listener() {
+    _destroy_setting_change_listener() {
         this._prefs.SHOW_EXTRA_SPACES.disconnect();
         this._prefs.SHOW_PERCENT_SIGN.disconnect();
         this._prefs.IS_CPU_USAGE_ENABLE.disconnect();
         this._prefs.IS_MEMORY_USAGE_ENABLE.disconnect();
+        this._prefs.IS_TEMPERATURE_ENABLE.disconnect();
         this._prefs.IS_DOWNLOAD_SPEED_ENABLE.disconnect();
         this._prefs.IS_UPLOAD_SPEED_ENABLE.disconnect();
         this._prefs.CPU_USAGE_TEXT.disconnect();
         this._prefs.MEMORY_USAGE_TEXT.disconnect();
+        this._prefs.TEMPERATURE_TEXT.disconnect();
         this._prefs.DOWNLOAD_SPEED_TEXT.disconnect();
         this._prefs.UPLOAD_SPEED_TEXT.disconnect();
         this._prefs.ITEM_SEPARATOR.disconnect();
@@ -579,6 +641,7 @@ export default class SSMExtension extends Extension {
         this._prefs.FONT_WEIGHT.disconnect();
         this._prefs.IS_SWAP_USAGE_ENABLE.disconnect();
         this._prefs.SWAP_USAGE_TEXT.disconnect();
+        this._prefs.IS_TEMPERATURE_FAHRENHEIT.disconnect();
         this._prefs.SHOW_FULL_NET_SPEED_UNIT.disconnect();
     }
 }

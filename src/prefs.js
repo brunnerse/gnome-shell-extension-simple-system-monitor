@@ -9,14 +9,18 @@ import {
 
 import * as Settings from './settings.js';
 
+// TODO avoid DEFAULT_SETTINGS by using default from schema instead?
 const DEFAULT_SETTINGS = {
     extensionPosition: 'right',
     extensionOrder: 0,
     fontWeight: 700,
     showExtraSpaces: true,
     showPercentSign: true,
+    isTemperatureFahrenheit: false,
     isCpuUsageEnable: true,
     cpuUsageText: 'U',
+    isTemperatureEnable: true,
+    temperatureText: 'T',
     isMemoryUsageEnable: true,
     memoryUsageText: 'M',
     isDownloadSpeedEnable: true,

@@ -9,6 +9,13 @@ export var Prefs = class Prefs {
         this.SHOW_PERCENT_SIGN = new PrefValue(settings, 'show-percent-sign', 'boolean');
         this.IS_CPU_USAGE_ENABLE = new PrefValue(settings, 'is-cpu-usage-enable', 'boolean');
         this.CPU_USAGE_TEXT = new PrefValue(settings, 'cpu-usage-text', 'string');
+        this.IS_TEMPERATURE_ENABLE = new PrefValue(settings, 'is-temperature-enable', 'boolean');
+        this.TEMPERATURE_TEXT = new PrefValue(settings, 'temperature-text', 'string');
+        this.IS_TEMPERATURE_FAHRENHEIT = new PrefValue(
+            settings,
+            'is-temperature-fahrenheit',
+            'boolean',
+        );
         this.IS_MEMORY_USAGE_ENABLE = new PrefValue(settings, 'is-memory-usage-enable', 'boolean');
         this.MEMORY_USAGE_TEXT = new PrefValue(settings, 'memory-usage-text', 'string');
         this.IS_DOWNLOAD_SPEED_ENABLE = new PrefValue(
